@@ -129,7 +129,16 @@ Since you're using **Supabase** as your database provider:
 
 ### Common Issues
 
-1. **Port Conflicts**: Railway automatically assigns ports. Make sure your backend uses `process.env.PORT`
+1. **Lockfile Frozen Error**: 
+   ```
+   error: lockfile had changes, but lockfile is frozen
+   ```
+   **Solution**: This project includes `.npmrc` files and Railway configs that use `--legacy-peer-deps` to handle lockfile issues. If you still encounter this:
+   - Delete `package-lock.json` files and regenerate them locally
+   - Commit the updated lockfiles
+   - Redeploy to Railway
+
+2. **Port Conflicts**: Railway automatically assigns ports. Make sure your backend uses `process.env.PORT`
 
 3. **Database Connection Issues**: 
    - Verify `DATABASE_URL` points to your Supabase database

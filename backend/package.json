@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "start:production": "npm run build && npm run db:migrate && npm run start",
+    "start:railway": "npm install --legacy-peer-deps && npm run build && npm run db:migrate && npm run start",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push:pg",
     "db:migrate": "node scripts/migrate.js",
