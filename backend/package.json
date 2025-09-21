@@ -8,8 +8,10 @@
     "dev": "nodemon --exec tsx src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
+    "start:production": "npm run build && npm run db:migrate && npm run start",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push:pg",
+    "db:migrate": "node scripts/migrate.js",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
