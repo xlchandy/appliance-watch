@@ -7,29 +7,60 @@ import { Appliance, ApplianceWithStatus, WarrantyStatus } from '@/types/applianc
 import { getWarrantyStatus } from '@/utils/dateUtils';
 import { ApplianceCard } from './ApplianceCard';
 import { AddApplianceDialog } from './AddApplianceDialog';
+import { ApplianceService } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 export const ApplianceDashboard = () => {
   const [appliances, setAppliances] = useState<Appliance[]>([]);
   const [filteredAppliances, setFilteredAppliances] = useState<ApplianceWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<WarrantyStatus | 'all'>('all');
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Load appliances from localStorage on mount
+  // Load appliances from API on mount
   useEffect(() => {
-    const stored = localStorage.getItem('appliances');
-    if (stored) {
-      try {
-        setAppliances(JSON.parse(stored));
-      } catch (error) {
-        console.error('Error loading appliances:', error);
-      }
-    }
+    loadAppliances();
   }, []);
 
-  // Save appliances to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('appliances', JSON.stringify(appliances));
-  }, [appliances]);
+  const loadAppliances = async () => {
+    try {
+      setLoading(true);
+      const response = await ApplianceService.getAppliances();
+      if (response.success && response.data) {
+        // Convert API response to frontend format
+        const appliancesData = response.data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          brand: item.brand,
+          model: item.model,
+          serialNumber: item.serialNumber,
+          purchaseDate: item.purchaseDate.split('T')[0], // Convert to YYYY-MM-DD format
+          purchaseLocation: item.purchaseLocation,
+          warrantyMonths: item.warrantyMonths,
+          warrantyExpiryDate: item.warrantyExpiryDate.split('T')[0], // Convert to YYYY-MM-DD format
+          category: item.category,
+          notes: item.notes
+        }));
+        setAppliances(appliancesData);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load appliances",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading appliances:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load appliances",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter and enhance appliances with warranty status
   useEffect(() => {
@@ -59,12 +90,44 @@ export const ApplianceDashboard = () => {
     setFilteredAppliances(filtered);
   }, [appliances, searchTerm, statusFilter]);
 
-  const handleAddAppliance = (newAppliance: Omit<Appliance, 'id'>) => {
-    const appliance: Appliance = {
-      ...newAppliance,
-      id: crypto.randomUUID()
-    };
-    setAppliances(prev => [...prev, appliance]);
+  const handleAddAppliance = async (newAppliance: Omit<Appliance, 'id'>) => {
+    try {
+      // Convert frontend format to API format
+      const apiData = {
+        name: newAppliance.name,
+        brand: newAppliance.brand,
+        model: newAppliance.model,
+        serialNumber: newAppliance.serialNumber,
+        purchaseDate: new Date(newAppliance.purchaseDate).toISOString(),
+        purchaseLocation: newAppliance.purchaseLocation,
+        warrantyMonths: newAppliance.warrantyMonths,
+        category: newAppliance.category,
+        notes: newAppliance.notes
+      };
+      
+      const response = await ApplianceService.createAppliance(apiData);
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Appliance added successfully"
+        });
+        // Reload appliances to get the latest data
+        await loadAppliances();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to add appliance",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error adding appliance:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add appliance",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusCounts = () => {
@@ -165,7 +228,12 @@ export const ApplianceDashboard = () => {
         </div>
 
         {/* Appliances Grid */}
-        {filteredAppliances.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading appliances...</p>
+          </div>
+        ) : filteredAppliances.length === 0 ? (
           <div className="text-center py-12">
             <Home className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
@@ -191,8 +259,30 @@ export const ApplianceDashboard = () => {
                   // TODO: Implement edit functionality
                   console.log('Edit appliance:', appliance);
                 }}
-                onDelete={(id) => {
-                  setAppliances(prev => prev.filter(a => a.id !== id));
+                onDelete={async (id) => {
+                  try {
+                    const response = await ApplianceService.deleteAppliance(id);
+                    if (response.success) {
+                      toast({
+                        title: "Success",
+                        description: "Appliance deleted successfully"
+                      });
+                      await loadAppliances();
+                    } else {
+                      toast({
+                        title: "Error",
+                        description: "Failed to delete appliance",
+                        variant: "destructive"
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Error deleting appliance:', error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to delete appliance",
+                      variant: "destructive"
+                    });
+                  }
                 }}
               />
             ))}
